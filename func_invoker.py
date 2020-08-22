@@ -1,12 +1,9 @@
-import datetime
 import os
 import signal
 import socket
 import subprocess
 import time
-from pathlib import Path
-
-from termcolor import cprint
+from typing import Dict, List
 
 
 class JuliusManager:
@@ -18,19 +15,15 @@ class JuliusManager:
         except ConnectionRefusedError as _:
             self.run_terminal()
             if self.process is None:
-                raise Exception("Could not connect to julius.")
+                raise ConnectionRefusedError("Could not connect to julius.")
             try:
                 self.sock.connect((host, port))
             except ConnectionRefusedError as _:
-                raise Exception("Could not connect to julius.")
+                raise ConnectionRefusedError("Could not connect to julius.")
         else:
-            cprint("Connected to julius.", color="green")
             self.sock.setblocking(False)
         self.data = ""
-        self.start_word = "録画開始"
-        self.stop_word = "終わりましたよ"
-        self.flag_should_start_recording = False
-        self.flag_should_stop_recording = False
+        self.__wake_words = {"水ください":1}
 
     def terminate(self) -> None:
         if self.process is not None:
@@ -66,43 +59,36 @@ class JuliusManager:
                 self.terminate()
                 raise Exception(f"{path} file not found.")
 
-    def set_parameter(self, start_word: str, stop_word: str) -> None:
-        self.start_word = start_word
-        self.stop_word = stop_word
+    @property
+    def wake_words(self) -> dict:
+        return self.__wake_words
 
-    def update(self) -> None:
+    @wake_words.setter
+    def set_wake_words(self, wake_words: Dict[str, int]) -> None:
+        if type(wake_words) is not dict:
+            raise TypeError("`wake_words` should be `dict` type.")
+        else:
+            self.__wake_words = wake_words
+
+    def update(self) -> List[int]:
+        spoken_id_list = []
+        is_data_remaining = True
+        while is_data_remaining:
+            try:
+                self.data += str(self.sock.recv(1024).decode("utf-8"))
+            except BlockingIOError as _:
+                # Juliusから何も来ていなかったときに起こる例外
+                is_data_remaining = False
+
         if "</RECOGOUT>\n." in self.data:
             spoken = ""
             for line in self.data.split("\n"):
                 index = line.find('WORD="')
                 if index != -1:
-                    line = line[index + 6 : line.find('"', index + 6)]
-                    spoken += str(line)
+                    spoken = line[index + 6 : line.find('"', index + 6)]
+                    spoken_id = self.__wake_words.get(spoken)
+                    if not spoken_id:
+                        spoken_id_list.append(spoken_id)
             self.data = ""
 
-            # print("Detected: " + spoken)
-            if self.start_word in spoken:
-                self.flag_should_start_recording = True
-            elif self.stop_word in spoken:
-                self.flag_should_stop_recording = True
-
-        else:
-            try:
-                self.data += str(self.sock.recv(1024).decode("utf-8"))
-            except BlockingIOError as _:
-                # Juliusから何も来ていなかったときに起こる例外
-                pass
-
-    def should_start_recording(self) -> bool:
-        if self.flag_should_start_recording:
-            self.flag_should_start_recording = False
-            return True
-        else:
-            return False
-
-    def should_stop_recording(self) -> bool:
-        if self.flag_should_stop_recording:
-            self.flag_should_stop_recording = False
-            return True
-        else:
-            return False
+        return spoken_id_list
