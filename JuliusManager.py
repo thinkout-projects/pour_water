@@ -23,7 +23,7 @@ class JuliusManager:
         else:
             self.sock.setblocking(False)
         self.data = ""
-        self.__wake_words = {"水ください":1}
+        self.__wake_words = {"水ください": 1}
 
     def terminate(self) -> None:
         if self.process is not None:
@@ -47,24 +47,22 @@ class JuliusManager:
                 time.sleep(2)
             else:
                 self.terminate()
-                raise Exception("{} file not found.".format(path))
+                raise FileNotFoundError(f"{path} file not found.")
         else:
-            # 未検証: for linux or mac
+            # for linux or mac
             path = "julius-start.sh"
-            if not os.path.exists(path):
-                self.process = subprocess.Popen(
-                    f'xterm -hold -e "{path}"', shell=True
-                )
+            if os.path.exists(path):
+                self.process = subprocess.Popen(f'xterm -hold -e "{path}"', shell=True)
             else:
                 self.terminate()
-                raise Exception(f"{path} file not found.")
+                raise FileNotFoundError(f"{path} file not found.")
 
     @property
     def wake_words(self) -> dict:
         return self.__wake_words
 
     @wake_words.setter
-    def set_wake_words(self, wake_words: Dict[str, int]) -> None:
+    def wake_words(self, wake_words: Dict[str, int]) -> None:
         if type(wake_words) is not dict:
             raise TypeError("`wake_words` should be `dict` type.")
         else:
@@ -81,13 +79,12 @@ class JuliusManager:
                 is_data_remaining = False
 
         if "</RECOGOUT>\n." in self.data:
-            spoken = ""
             for line in self.data.split("\n"):
                 index = line.find('WORD="')
                 if index != -1:
                     spoken = line[index + 6 : line.find('"', index + 6)]
                     spoken_id = self.__wake_words.get(spoken)
-                    if not spoken_id:
+                    if spoken_id:
                         spoken_id_list.append(spoken_id)
             self.data = ""
 
