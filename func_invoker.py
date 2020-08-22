@@ -16,17 +16,13 @@ class JuliusManager:
         try:
             self.sock.connect((host, port))
         except ConnectionRefusedError as _:
-            # self.end()
-            # cprint("Could not connected to julius.", color="red")
-            # cprint("Run 'sh julius-start.sh'.", color="red")
-            # raise Exception("Could not connected to julius.")
             self.run_terminal()
             if self.process is None:
-                raise Exception("Could not connected to julius.")
+                raise Exception("Could not connect to julius.")
             try:
                 self.sock.connect((host, port))
             except ConnectionRefusedError as _:
-                raise Exception("Could not connected to julius.")
+                raise Exception("Could not connect to julius.")
         else:
             cprint("Connected to julius.", color="green")
             self.sock.setblocking(False)
@@ -36,7 +32,7 @@ class JuliusManager:
         self.flag_should_start_recording = False
         self.flag_should_stop_recording = False
 
-    def terminate(self):
+    def terminate(self) -> None:
         if self.process is not None:
             if os.name == "nt":
                 os.kill(self.process.pid, signal.CTRL_C_EVENT)
@@ -44,7 +40,7 @@ class JuliusManager:
                 os.kill(self.process.pid, signal.SIGKILL)
         time.sleep(1)
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.terminate()
 
     def run_terminal(self) -> None:
@@ -52,20 +48,23 @@ class JuliusManager:
             # for windows
             path = "julius-start.cmd"
             if os.path.exists(path):
-                self.process = subprocess.Popen("start \"JULIUS CONSOLE\" cmd.exe /K \"{}\"".format(path), shell=True)
+                self.process = subprocess.Popen(
+                    f'start "JULIUS CONSOLE" cmd.exe /K "{path}"', shell=True
+                )
                 time.sleep(2)
             else:
                 self.terminate()
                 raise Exception("{} file not found.".format(path))
         else:
-            # for linux or mac
-            # 未検証
+            # 未検証: for linux or mac
             path = "julius-start.sh"
             if not os.path.exists(path):
-                self.process = subprocess.Popen("xterm -hold -e \"{}\"".format(path), shell=True)
+                self.process = subprocess.Popen(
+                    f'xterm -hold -e "{path}"', shell=True
+                )
             else:
                 self.terminate()
-                raise Exception("{} file not found.".format(path))
+                raise Exception(f"{path} file not found.")
 
     def set_parameter(self, start_word: str, stop_word: str) -> None:
         self.start_word = start_word
@@ -77,7 +76,7 @@ class JuliusManager:
             for line in self.data.split("\n"):
                 index = line.find('WORD="')
                 if index != -1:
-                    line = line[index + 6: line.find('"', index + 6)]
+                    line = line[index + 6 : line.find('"', index + 6)]
                     spoken += str(line)
             self.data = ""
 
@@ -90,7 +89,7 @@ class JuliusManager:
         else:
             try:
                 self.data += str(self.sock.recv(1024).decode("utf-8"))
-            except BlockingIOError as e:
+            except BlockingIOError as _:
                 # Juliusから何も来ていなかったときに起こる例外
                 pass
 
