@@ -2,19 +2,6 @@
 
 ## 環境構築
 
-## 依存パッケージの解決
-
-PIPで`termcolor`をインストールする。
-```bash
-pip install termcolor
-```
-
-もしくは、poetry環境では
-```bash
-poetry install
-```
-を実行する。
-
 ### Juliusをインストール
 
 https://julius.osdn.jp/index.php?q=newjulius.html
